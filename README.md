@@ -124,6 +124,13 @@ And the output image will display 3 overlaid ellipses:
 🔵 Blue = 1/e² boundary  
 
 ---
+## How to Run
+1. Clone this repository  
+2. Open `TestDll.sln` in Visual Studio  
+3. Build and Run (F5)
+4. Load an image and press "Gaussian Fit"
+
+---
 
 ## 📄 License
 MIT License © 2025 Napat Sutikant
