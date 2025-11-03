@@ -132,5 +132,33 @@ And the output image will display 3 overlaid ellipses:
 
 ---
 
+## ⚠ Troubleshooting: "Mark of the Web" Error in Visual Studio
+If you download this project as a ZIP file and open it directly in Visual Studio, you might see an error like this:
+```vbnet
+Couldn't process file Form1.resx due to its being in the Internet or Restricted zone
+or having the mark of the web on the file.
+```
+### 💡 Cause
+
+Windows automatically marks downloaded files from the internet with a security flag (“Mark of the Web”).
+Visual Studio blocks those files for safety reasons.
+
+### ✅ Solution
+
+Option 1 – Recommended (Before extracting ZIP):
+1. Right-click the downloaded .zip file.
+2. Select Properties.
+3. Check the box Unblock at the bottom of the window.
+4. Click Apply → OK.
+5. Then extract (unzip) and open the project in Visual Studio again.
+
+Option 2 – Clone directly:
+If you use Git, you can clone the repository directly (this avoids the problem entirely):
+
+```bash
+git clone https://github.com/sutikant/GaussianFit.Core.VB_Examples.git
+```
+---
+
 ## 📄 License
 MIT License © 2025 Napat Sutikant
