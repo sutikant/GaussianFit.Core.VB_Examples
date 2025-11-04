@@ -106,6 +106,13 @@ Private Sub btnGaussianFit_Click(sender As Object, e As EventArgs) Handles btnGa
 End Sub
 ```
 ---
+## 🖼️ Sample images
+
+This repo includes a `sample_pic/` folder with test images.  
+All images are marked as **Content** and **Copy to Output Directory = Copy if newer**,  
+so after you build, they will appear under `bin\<Config>\sample_pic`.
+
+---
 
 ## 📊 Output Example
 
