@@ -101,10 +101,14 @@ Public Class Form1
         Using ofd As New OpenFileDialog()
             Dim exeDir As String = AppDomain.CurrentDomain.BaseDirectory
             Dim sampleDir As String = Path.Combine(exeDir, "sample_pic")
-            If Not Directory.Exists(sampleDir) Then Directory.CreateDirectory(sampleDir)
+
+            If Not Directory.Exists(sampleDir) Then
+                Directory.CreateDirectory(sampleDir)
+            End If
 
             ofd.InitialDirectory = sampleDir
             ofd.Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp"
+
             If ofd.ShowDialog() = DialogResult.OK Then
                 If _currentBitmap IsNot Nothing Then _currentBitmap.Dispose()
                 _currentBitmap = CType(System.Drawing.Image.FromFile(ofd.FileName), Bitmap)
@@ -116,6 +120,7 @@ Public Class Form1
             End If
         End Using
     End Sub
+
 
     Private Sub borderTrackBar_Scroll(sender As Object, e As EventArgs) Handles borderTrackBar.Scroll
         _borderPercentage = borderTrackBar.Value / 10.0
