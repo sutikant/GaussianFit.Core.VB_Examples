@@ -9,7 +9,7 @@ Public Class Form1
     ' Parameters (state)
     Private _borderPercentage As Double = 10.0   ' 0..50 %
     Private _cutoffPercentage As Double = 30.0   ' 1..100 %
-    Private _maxIterations As Integer = 60       ' 5..200
+    Private _maxIterations As Integer = 200       ' 5..200
     Private _epsStop As Double = 0.000000001          ' 1e-6 / 1e-9 / 1e-12
 
     ' NEW: Mode and percentile value (for Percentile mode)
@@ -18,11 +18,11 @@ Public Class Form1
 
     Private _currentBitmap As Bitmap             ' The latest loaded image.
 
-    ' Cache (optionally used by your pipeline)
+    ' Cache
     Private _gray8 As Byte()
     Private _w As Integer, _h As Integer
 
-    ' After BG subtraction + threshold (optional)
+    ' After BG subtraction + threshold 
     Private _afterThreshF64 As Double()
 
     ' === Helpers ===
@@ -169,39 +169,42 @@ Public Class Form1
         End If
 
         Try
-            ' Create options to match the UI settings
-            Dim opts As New FitOptions()
-            opts.Mode = _mode
-            opts.BorderPercent = _borderPercentage      ' Used for EdgeMean mode
-            opts.PercentileP = _percentileP             ' Used for Percentile mode
-            opts.CutoffPercent = _cutoffPercentage
-            opts.MaxIterations = _maxIterations
-            opts.Epsilon = _epsStop
+            ' --- Fixed parameters (lock for production) ---
+            Dim roi As New RoiRect(202, 163, 750, 750)
 
-            ' Call the DLL (new API)
-            Dim fit As FitResult = GaussianFitter.Run(_currentBitmap, opts)
+            Dim opts As New FitOptions() With {
+                .Mode = PrepMode.EdgeMean_BorderPct,
+                .BorderPercent = 10.0,
+                .CutoffPercent = 30.0,
+                .MaxIterations = 200,
+                .Epsilon = 0.000000001
+            }
+
+            ' Call the DLL (ROI overload)
+            ' Dim fit As FitResult = GaussianFitter.Run(_currentBitmap, opts)
+            Dim fit As FitResult = GaussianFitter.Run(_currentBitmap, roi, opts)
 
             ' Full report
             rtbFit.Text = fit.ReportText
 
-            ' ---- Build nRMSE line for MessageBox (like C#) ----
+            ' ---- Build nRMSE line for MessageBox ----
             Dim nrmsePct As Double = If(Double.IsNaN(fit.NormalizedRmse), Double.NaN, fit.NormalizedRmse * 100.0)
             Dim nrmseLine As String
             If Double.IsNaN(nrmsePct) Then
                 nrmseLine = "nRMSE (RMSE/A):     NaN %   [Poor]"
             Else
                 Dim pctText As String =
-                    If(nrmsePct >= 0.01,
-                       nrmsePct.ToString("F2", CultureInfo.InvariantCulture),
-                       nrmsePct.ToString("E2", CultureInfo.InvariantCulture))
+            If(nrmsePct >= 0.01,
+               nrmsePct.ToString("F2", CultureInfo.InvariantCulture),
+               nrmsePct.ToString("E2", CultureInfo.InvariantCulture))
                 Dim grade As String = If(String.IsNullOrEmpty(fit.QualityGrade), "—", fit.QualityGrade)
                 nrmseLine = String.Format(CultureInfo.InvariantCulture,
-                                          "nRMSE (RMSE/A): {0,10} %   [{1}]", pctText, grade)
+                                  "nRMSE (RMSE/A): {0,10} %   [{1}]", pctText, grade)
             End If
 
-            ' Compact summary
+            ' Compact summary (X0,Y0 are ORIGINAL image coordinates)
             Dim msg As String = String.Format(CultureInfo.InvariantCulture,
-                "Center (x0, y0): {0:F2}, {1:F2}" & Environment.NewLine &
+                "Center (x0, y0) [orig]: {0:F2}, {1:F2}" & Environment.NewLine &
                 "σx, σy: {2:F3}, {3:F3}" & Environment.NewLine &
                 "FWHM X, Y: {4:F3}, {5:F3}" & Environment.NewLine &
                 "{6}",
@@ -209,11 +212,12 @@ Public Class Form1
 
             MessageBox.Show(msg, "Fit Results", MessageBoxButtons.OK, MessageBoxIcon.Information)
 
-            ' ---- Draw overlay (same as C#) ----
+            ' ---- Draw overlay on ORIGINAL image ----
             Using vis As Bitmap = CType(_currentBitmap.Clone(), Bitmap)
                 Using g As Graphics = Graphics.FromImage(vis)
                     g.SmoothingMode = SmoothingMode.AntiAlias
-                    Dim cx As Single = CSng(fit.X0)
+
+                    Dim cx As Single = CSng(fit.X0)  ' original center
                     Dim cy As Single = CSng(fit.Y0)
 
                     ' crosshair
@@ -229,8 +233,8 @@ Public Class Form1
                         End Sub
 
                     Using pen1 As New Pen(Color.Green, 1),
-                          pen2 As New Pen(Color.Orange, 1),
-                          pen3 As New Pen(Color.Blue, 1)
+                  pen2 As New Pen(Color.Orange, 1),
+                  pen3 As New Pen(Color.Blue, 1)
                         DrawE(pen1, fit.Overlay.OneSigma.Rx, fit.Overlay.OneSigma.Ry)
                         DrawE(pen2, fit.Overlay.FwhmHalf.Rx, fit.Overlay.FwhmHalf.Ry)
                         DrawE(pen3, fit.Overlay.OneOverE2.Rx, fit.Overlay.OneOverE2.Ry)
@@ -243,7 +247,7 @@ Public Class Form1
 
         Catch ex As Exception
             MessageBox.Show("Gaussian Fit failed:" & Environment.NewLine & ex.Message,
-                            "Error", MessageBoxButtons.OK, MessageBoxIcon.[Error])
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.[Error])
         End Try
     End Sub
 End Class

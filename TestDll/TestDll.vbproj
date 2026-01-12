@@ -64,8 +64,8 @@
     <OptionInfer>On</OptionInfer>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="GaussianFit.Core, Version=1.0.2.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\GaussianFit.Core.1.0.3\lib\netstandard2.0\GaussianFit.Core.dll</HintPath>
+    <Reference Include="GaussianFit.Core, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\GaussianFit.Core.1.1.0\lib\netstandard2.0\GaussianFit.Core.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
