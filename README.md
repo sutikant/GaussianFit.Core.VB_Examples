@@ -1,6 +1,6 @@
-# GaussianFit.Core VB Examples
+# GaussianFit.Core VB Examples (v1.1.0)
 
-Example WinForms project demonstrating how to use the **GaussianFit.Core** library  
+Example WinForms project demonstrating how to use the **GaussianFit.Core** library **v1.1.0**  
 for performing **2D Gaussian fitting** on bitmap/image data in Visual Basic .NET.
 
 ---
@@ -8,12 +8,19 @@ for performing **2D Gaussian fitting** on bitmap/image data in Visual Basic .NET
 ## 🧠 Overview
 
 This project provides a **Visual Basic .NET WinForms** demo that uses the  
-[`GaussianFit.Core`](https://www.nuget.org/packages/GaussianFit.Core) library to perform  
+[`GaussianFit.Core`](https://www.nuget.org/packages/GaussianFit.Core) library (v1.1.0+) to perform  
 2D Gaussian fitting on grayscale or intensity images.
+
+**What’s new in v1.1.0**
+- ✅ **ROI support** (crop internally, results reported in original image coordinates)
+- ✅ Clean separation of *crop/local* vs *original* coordinates
+- ✅ Report text includes ROI metadata when used
+- ✅ Backward compatible: works exactly the same when ROI is not provided
 
 It demonstrates:
 - Background subtraction using **EdgeMean** or **Percentile** methods.  
 - Parameter configuration through interactive UI (TrackBars, ComboBoxes).  
+- Optional **fixed ROI** for production use (noise suppression near edges).  
 - 2D Gaussian model fitting with Levenberg–Marquardt optimization.  
 - Visualization of fitted ellipses for:
   - Green = 1σ boundary (~68% energy)
@@ -26,146 +33,123 @@ It demonstrates:
 ## 🧩 Installation
 
 Install the core library via NuGet:
-   ```bash
-   dotnet add package GaussianFit.Core
+```bash
+dotnet add package GaussianFit.Core
 ```
+
 ---
 
 ## 🧰 UI Components
 | Section                    | Controls                                            | Description                               |
 | -------------------------- | --------------------------------------------------- | ----------------------------------------- |
-| **Background Subtraction** | Mode (ComboBox), Edge Mask Size (%), Percentile (%) | Select preprocessing mode and parameters. |
-| **Gaussian Model Fitting** | Cutoff (%), Max Iterations, ε (epsilon)             | Configure fitting parameters.             |
-| **Visualization**          | PictureBox for input/output                         | Shows original and fitted overlay images. |
-| **Buttons**                | “Load Image” and “Gaussian Fit”                     | Load image and execute fitting.           |
+| **Background Subtraction** | Mode, Edge Mask Size (%), Percentile (%)             | Select preprocessing mode and parameters. |
+| **Gaussian Model Fitting** | Cutoff (%), Max Iterations, ε (epsilon)              | Configure fitting parameters.             |
+| **ROI (optional)**         | Fixed rectangle (x, y, w, h)                          | Limit fitting area without changing output coordinates. |
+| **Visualization**          | PictureBox for input/output                          | Shows original and fitted overlay images. |
+| **Buttons**                | “Load Image” and “Gaussian Fit”                      | Load image and execute fitting.           |
 
 ---
 
-## 💡 Example Code
-
-Below is the main section that performs the fitting and visualization:
+## 💡 Example Code (No ROI – default behavior)
 
 ```vbnet
-Private Sub btnGaussianFit_Click(sender As Object, e As EventArgs) Handles btnGaussianFit.Click
-    If _currentBitmap Is Nothing Then
-        MessageBox.Show("Please load an image first", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information)
-        Return
-    End If
+Dim opts As New FitOptions() With {
+    .Mode = PrepMode.EdgeMean_BorderPct,
+    .BorderPercent = 10.0,
+    .CutoffPercent = 30.0,
+    .MaxIterations = 200,
+    .Epsilon = 1.0E-9
+}
 
-    Try
-        Dim opts As New FitOptions()
-        opts.Mode = _mode
-        opts.BorderPercent = _borderPercentage
-        opts.PercentileP = _percentileP
-        opts.CutoffPercent = _cutoffPercentage
-        opts.MaxIterations = _maxIterations
-        opts.Epsilon = _epsStop
+Dim fit As FitResult = GaussianFitter.Run(_currentBitmap, opts)
 
-        Dim fit As FitResult = GaussianFitter.Run(_currentBitmap, opts)
-        rtbFit.Text = fit.ReportText
-
-        Dim msg As String = String.Format(
-            "Center (x0, y0): {0:F2}, {1:F2}" & vbCrLf &
-            "σx, σy: {2:F3}, {3:F3}" & vbCrLf &
-            "FWHM X, Y: {4:F3}, {5:F3}" & vbCrLf &
-            "nRMSE: {6:P2} [{7}]",
-            fit.X0, fit.Y0, fit.SigmaX, fit.SigmaY,
-            fit.FwhmX, fit.FwhmY, fit.NormalizedRmse, fit.QualityGrade
-        )
-
-        MessageBox.Show(msg, "Fit Results", MessageBoxButtons.OK, MessageBoxIcon.Information)
-
-        ' Draw overlay ellipses (1σ, FWHM/2, 1/e²)
-        Using vis As Bitmap = CType(_currentBitmap.Clone(), Bitmap)
-            Using g As Graphics = Graphics.FromImage(vis)
-                g.SmoothingMode = SmoothingMode.AntiAlias
-                Dim cx As Single = CSng(fit.X0)
-                Dim cy As Single = CSng(fit.Y0)
-                g.DrawLine(Pens.Red, cx - 8, cy, cx + 8, cy)
-                g.DrawLine(Pens.Red, cx, cy - 8, cx, cy + 8)
-
-                Dim DrawE As Action(Of Pen, Double, Double) =
-                    Sub(pen As Pen, rx As Double, ry As Double)
-                        g.DrawEllipse(pen, CSng(cx - rx), CSng(cy - ry), CSng(2 * rx), CSng(2 * ry))
-                    End Sub
-
-                Using pen1 As New Pen(Color.Green, 1),
-                      pen2 As New Pen(Color.Orange, 1),
-                      pen3 As New Pen(Color.Blue, 1)
-                    DrawE(pen1, fit.Overlay.OneSigma.Rx, fit.Overlay.OneSigma.Ry)
-                    DrawE(pen2, fit.Overlay.FwhmHalf.Rx, fit.Overlay.FwhmHalf.Ry)
-                    DrawE(pen3, fit.Overlay.OneOverE2.Rx, fit.Overlay.OneOverE2.Ry)
-                End Using
-            End Using
-            picOutput.Image = CType(vis.Clone(), Bitmap)
-        End Using
-
-    Catch ex As Exception
-        MessageBox.Show("Gaussian Fit failed:" & vbCrLf & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-    End Try
-End Sub
+Console.WriteLine($"Center (orig): x={fit.X0:F2}, y={fit.Y0:F2}")
 ```
+
 ---
+
+## 💡 Example Code (With ROI – **recommended for production**)
+
+```vbnet
+' Fixed parameters (lock for production)
+Dim roi As New RoiRect(202, 163, 750, 750)
+
+Dim opts As New FitOptions() With {
+    .Mode = PrepMode.EdgeMean_BorderPct,
+    .BorderPercent = 10.0,
+    .CutoffPercent = 30.0,
+    .MaxIterations = 500,
+    .Epsilon = 1.0E-9
+}
+
+Dim fit As FitResult = GaussianFitter.Run(_currentBitmap, roi, opts)
+
+' IMPORTANT:
+' fit.X0, fit.Y0 are ALWAYS in ORIGINAL image coordinates
+Console.WriteLine($"Center (orig): x={fit.X0:F2}, y={fit.Y0:F2}")
+```
+
+✔ Internally, the image is cropped to ROI for computation  
+✔ Results are **automatically compensated back** to original coordinates  
+✔ No coordinate drift in downstream systems
+
+---
+
+## 📄 Fit Report (v1.1.0)
+
+When ROI is used, the report includes:
+```
+ROI (original)  = x=202, y=163, w=750, h=750
+x0, y0 (orig)   = 524.31, 487.92
+```
+
+This makes debugging and production validation much easier.
+
+---
+
 ## 🖼️ Sample images
 
 This repo includes a `sample_pic/` folder with test images.  
 All images are marked as **Content** and **Copy to Output Directory = Copy if newer**,  
-so after you build, they will appear under `bin\<Config>\sample_pic`.
+so after you build, they will appear under:
+```
+bin\<Configuration>\sample_pic
+```
 
 ---
 
 ## 📊 Output Example
 
-When fitting completes successfully, you’ll see a dialog like:
 ```
-Center (x0, y0): 124.52, 132.33
+Center (x0, y0): 524.31, 487.92
 σx, σy: 5.214, 5.097
 FWHM X, Y: 12.280, 12.010
 nRMSE (RMSE/A):  0.0312 %   [Excellent]
 ```
 
-And the output image will display 3 overlaid ellipses:  
-
-🟢 Green = 1σ  
-🟠 Orange = FWHM/2  
-🔵 Blue = 1/e² boundary  
-
----
-## How to Run
-1. Clone this repository  
-2. Open `TestDll.sln` in Visual Studio  
-3. Build and Run (F5)
-4. Load an image and press "Gaussian Fit"
-
 ---
 
 ## ⚠ Troubleshooting: "Mark of the Web" Error in Visual Studio
-If you download this project as a ZIP file and open it directly in Visual Studio, you might see an error like this:
-```vbnet
-Couldn't process file Form1.resx due to its being in the Internet or Restricted zone
-or having the mark of the web on the file.
+
+If you download this project as a ZIP file and open it directly in Visual Studio, you might see:
 ```
-### 💡 Cause
+Couldn't process file Form1.resx due to its being in the Internet or Restricted zone
+```
 
-Windows automatically marks downloaded files from the internet with a security flag (“Mark of the Web”).
-Visual Studio blocks those files for safety reasons.
+### ✅ Solution (Recommended)
+1. Right-click the downloaded `.zip`
+2. Select **Properties**
+3. Check **Unblock**
+4. Click **Apply → OK**
+5. Extract and reopen the solution
 
-### ✅ Solution
-
-Option 1 – Recommended (Before extracting ZIP):
-1. Right-click the downloaded .zip file.
-2. Select Properties.
-3. Check the box Unblock at the bottom of the window.
-4. Click Apply → OK.
-5. Then extract (unzip) and open the project in Visual Studio again.
-
-Option 2 – Clone directly:
-If you use Git, you can clone the repository directly (this avoids the problem entirely):
-
+Or clone directly:
 ```bash
 git clone https://github.com/sutikant/GaussianFit.Core.VB_Examples.git
 ```
+
 ---
 
 ## 📄 License
 MIT License © 2025 Napat Sutikant
+
